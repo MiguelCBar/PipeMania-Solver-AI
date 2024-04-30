@@ -1,10 +1,8 @@
-# pipe.py: Template para implementação do projeto de Inteligência Artificial 2023/2024.
-# Devem alterar as classes e funções neste ficheiro de acordo com as instruções do enunciado.
-# Além das funções e classes sugeridas, podem acrescentar outras que considerem pertinentes.
+# pipe.py: Implementação do projeto de Inteligência Artificial 2023/2024.
 
-# Grupo 00:
-# 00000 Nome1
-# 00000 Nome2
+# Grupo 45:
+# 106064 Miguel Casimiro Barbosa
+# 107095 David Costa Quintino
 
 import sys
 import numpy 
@@ -35,9 +33,9 @@ class PipeManiaState:
 
 class Board:
     """Representação interna de um tabuleiro de PipeMania."""
-    def __init__(self):
-        self.grid = self.parse_instance()
-        self.size = len(self.grid)
+    def __init__(self, grid):
+        self.grid = grid
+        self.size = len(grid)
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
@@ -61,6 +59,10 @@ class Board:
         right_value = self.grid[row][col + 1] if col < self.size else None
         return left_value,right_value
 
+    def print_grid():
+        # TODO
+        return
+
         
 
     @staticmethod
@@ -79,7 +81,7 @@ class Board:
 
         board = numpy.stack(rows)
 
-        return board
+        return Board(board)
 
         
 
