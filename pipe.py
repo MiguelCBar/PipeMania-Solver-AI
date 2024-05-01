@@ -5,7 +5,7 @@
 # 107095 David Costa Quintino
 
 import sys
-import numpy 
+import numpy as np
 from search import (
     Problem,
     Node,
@@ -39,49 +39,52 @@ class Board:
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
-        return self[row][col]
+        return self.grid[row][col]
         
 
-    def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
+    def adjacent_vertical_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
-        # TODO
         above_value = self.grid[row - 1][col] if row > 0 else None
         below_value = self.grid[row + 1][col] if row < self.size else None
         return above_value,below_value
 
 
-    def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
+    def adjacent_horizontal_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
-        # TODO
         left_value = self.grid[row][col - 1] if col > 0 else None
         right_value = self.grid[row][col + 1] if col < self.size else None
         return left_value,right_value
 
-    def print_grid():
+    def print_grid(self):
         # TODO
+        
+        for i in range(self.size):
+            aux = "" 
+            for j in range(self.size):
+                aux = aux + self.get_value(i, j) + " "
+            print(aux)
+                
+
+        
         return
 
         
 
     @staticmethod
-    def parse_instance():
+    def parse_instance(file_name):
         """
         Lê o test do standard input (stdin) que é passado como argumento
         e retorna uma instância da classe Board.
         """
         rows = []
-        line = sys.stdin.readline().split()
-        i = len(line)
-        while(i>0):
-            rows.append(numpy.array(line))
-            line = sys.stdin.readline().split()  
-            i-=1
+        with open(file_name, 'r') as file:
+            for line in file:
+                rows.append(np.array(line.split()))
 
-        board = numpy.stack(rows)
-
-        return Board(board)
+        grid = np.stack(rows)
+        return Board(grid)
 
         
 
@@ -125,8 +128,17 @@ class PipeMania(Problem):
 
 if __name__ == "__main__":
     # TODO:
+
+    if len(sys.argv) != 2:
+        print("Usage: python pipe_mania.py input_file.txt")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    board = Board.parse_instance(input_file)
+    board.print_grid()
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
     # Retirar a solução a partir do nó resultante,
     # Imprimir para o standard output no formato indicado.
     pass
+
