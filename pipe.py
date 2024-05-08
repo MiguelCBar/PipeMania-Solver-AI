@@ -18,7 +18,6 @@ from search import (
 )
 
 
-
 class PipeManiaState:
     state_id = 0
 
@@ -68,16 +67,17 @@ class Board:
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
-        above_value = self.grid[row - 1][col] if row > 0 else None
-        below_value = self.grid[row + 1][col] if row < self.size else None
+        above_value = self.get_value(row-1,col) if row > 0 else None
+        below_value = self.get_value(row+1,col) if row < self.size else None
         return above_value,below_value
 
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
-        left_value = self.grid[row][col - 1] if col > 0 else None
-        right_value = self.grid[row][col + 1] if col < self.size else None
+        self.get_value(row,col)
+        left_value = self.get_value(row,col-1) if col > 0 else None
+        right_value = self.get_value(row,col+1) if col < self.size else None
         return left_value,right_value
 
     def print_grid(self):
@@ -89,6 +89,56 @@ class Board:
                 aux = aux + self.get_value(i, j)[:2] + " "
             print(aux)
         return
+    
+    def piece_corrected(self, row: int,  col: int): 
+        return self.get_value(self, row,col)[2] == '1'
+
+    """ Ve se a peca em cima da dada esta conectada ou nao. 
+    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
+    def connected_cima(self, row: int, col: int):  
+        connected_pieces = np.array(["BC","BE","BD","VC","VD","LV","FC"])#verificar
+        piece = self.get_value(row, col)
+        cima_neighbor = self.adjacent_vertical_values(row, col)[0] # maybe errado
+        if cima_neighbor== None: return 0
+        elif piece[2] == '0': return 2
+        elif np.isin(piece,connected_pieces): return 1
+        else: return 0
+
+    """ Ve se a peca a baixo da dada esta conectada ou nao. 
+    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
+    def connected_baixo(self, row: int, col: int):  
+        connected_pieces = np.array(["BB","BE","BD","VE","VB","LV","FB"])#verificar
+        piece = self.get_value(row, col)
+        baixo_neighbor = self.adjacent_vertical_values(row, col)[1] # maybe errado
+        if baixo_neighbor== None: return 0
+        elif piece[2] == '0': return 2
+        elif np.isin(piece,connected_pieces): return 1
+        else: return 0
+   
+    """ Ve se a peca a esquerda da dada esta conectada ou nao. 
+    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
+    def connected_esq(self, row: int, col: int):  
+        connected_pieces = np.array(["BC","BB","BD","VC","VE","LH","FE"]) #verificar
+        piece = self.get_value(row, col)
+        cima_neighbor = self.adjacent_horizontal_values(row, col)[0] # maybe errado
+        if cima_neighbor== None: return 0
+        elif piece[2] == '0': return 2
+        elif np.isin(piece,connected_pieces): return 1
+        else: return 0
+
+
+    """ Ve se a peca a direita da dada esta conectada ou nao. 
+    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
+    def connected_dir(self, row: int, col: int):  
+        connected_pieces = np.array(["BC","BB","BE","VB","VD","LH","FD"]) #verificar
+        piece = self.get_value(row, col)
+        cima_neighbor = self.adjacent_horizontal_values(row, col)[1] # maybe errado
+        if cima_neighbor== None: return 0
+        elif piece[2] == '0': return 2
+        elif np.isin(piece,connected_pieces): return 1
+        else: return 0
+
+
     
 
 
@@ -134,31 +184,63 @@ class Board:
                 self.grid(row,self.size)[1] = 'E'
 
 
-
+    """devolve as possiveis orientacoes da peca com base nos seus vizinhos
+        nao altera a peça"""
     def comparisons(self, row: int, col: int):
         piece = self.get_value(row, col)
         if(piece[2] == '1'):
-            return
-        above_piece, below_piece = self.adjacent_vertical_values(row, col)
-        left_piece, right_piece = self.adjacent_horizontal_values(row, col)
+            return [piece]
 
-
+        connections= np.array([self.connected_cima(row,col),self.connected_dir(row,col),
+                              self.connected_baixo(row,col),self.connected_esq(row,col)])
+        keys = np.array(['C','D','B','E'])
+        opposite_keys = np.array(['B','E'])
+        dict = dict(zip(keys, connections))
         if(piece[0] == 'F'):
-            if(above_piece == None and left_piece == None):
-                if
-                
-                
+            if np.count_nonzero(connections = 1) == 1:
+                """mudar esta merda pa lista o dict  n vale a pena"""
+                key_with_value_1 = [key for key, value in dict.items() if value == 1]
+                return ['F'+key_with_value_1+'1']    
+            elif np.count_nonzero(connections = 0) > 0:
+                keys_with_value_0 = [key for key, value in dict.items() if value == 0]
+
+                return np.setdiff1d(keys,keys_with_value_0)
+            else:
+                return["FC1","FD1","FB1","FE1"]
+
 
         elif(piece[0] == 'B'):
+            """"maybe desnecessaario esta cena de cima logo se ve"""
+            if np.count_nonzero(connections = 0) == 1:
+                index_value_0 = connections.index(0)
+                return ['B'+opposite_keys[index_value_0+'1']]
 
+            elif np.count_nonzero(connections = 1) > 0:
+                index_values1 = np.where(connections == 1)[0]
+                return np.setdiff1d(keys,index_values1)
+            else:
+                return["BC1","BD1","BB1","BE1"]
+        
 
         elif(piece[0] == 'V'):
-
+            #TODO
+            return
 
         else: # é ligação, L
+            #ver quais ligam
+            index_values1 = np.where(connections = 1)[0]
+            if(len(index_values1) != 0 ):
+                if np.isin(index_values1,0) or np.isin(index_values0,2): return "LV1"
+                else: return "LH1"
 
+            index_values0 = np.where(connections = 0)[0]
+            if(len(index_value_0)!=0):
+                if np.isin(index_value_0,0) or np.isin(index_value_0,2): return "LH1"
+                else: return "LV1"
+            
+            return ["LV1","LH1"]
 
-        
+    
 
 
 
@@ -191,8 +273,8 @@ class PipeMania(Problem):
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
         self.board = board
-        # TODO
-        pass
+        self.goal = self.board.size
+
 
     def actions(self, state: PipeManiaState):
         """Retorna uma lista de ações que podem ser executadas a
@@ -216,9 +298,11 @@ class PipeMania(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        # TODO
+
+        dfs_nodes_count = 0
         
-        pass
+        
+        return False
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
