@@ -17,6 +17,10 @@ from search import (
     recursive_best_first_search,
 )
 
+point_up = ["BC","BE","BD","VC","VD","LV","FC"]
+point_down = ["BB","BE","BD","VE","VB","LV","FB"]
+point_left = ["BC","BB","BD","VC","VE","LH","FE"]
+point_right = ["BC","BB","BE","VB","VD","LH","FD"]
 
 class PipeManiaState:
     state_id = 0
@@ -30,6 +34,9 @@ class PipeManiaState:
         return self.id < other.id
 
     # TODO: outros metodos da classe
+
+
+
 
 
 class Board:
@@ -112,7 +119,7 @@ class Board:
         baixo_neighbor = self.adjacent_vertical_values(row, col)[1] # maybe errado
         if baixo_neighbor== None: return 0
         elif piece[2] == '0': return 2
-        elif np.isin(piece,connected_pieces): return 1
+        elif np.isin(piece[0,2],connected_pieces): return 1
         else: return 0
    
     """ Ve se a peca a esquerda da dada esta conectada ou nao. 
@@ -134,7 +141,7 @@ class Board:
         piece = self.get_value(row, col)
         cima_neighbor = self.adjacent_horizontal_values(row, col)[1] # maybe errado
         if cima_neighbor== None: return 0
-        elif piece[2] == '0': return 2
+        elif cima_neighbor[2] == '0': return 2
         elif np.isin(piece,connected_pieces): return 1
         else: return 0
 
@@ -193,31 +200,38 @@ class Board:
 
         connections= np.array([self.connected_cima(row,col),self.connected_dir(row,col),
                               self.connected_baixo(row,col),self.connected_esq(row,col)])
-        keys = np.array(['C','D','B','E'])
-        opposite_keys = np.array(['B','E'])
-        dict = dict(zip(keys, connections))
-        if(piece[0] == 'F'):
-            if np.count_nonzero(connections = 1) == 1:
-                """mudar esta merda pa lista o dict  n vale a pena"""
-                key_with_value_1 = [key for key, value in dict.items() if value == 1]
-                return ['F'+key_with_value_1+'1']    
-            elif np.count_nonzero(connections = 0) > 0:
-                keys_with_value_0 = [key for key, value in dict.items() if value == 0]
+        index_values_2 = []
+        index_values_1 = []
+        index_values_0 = []
+        for item in connections:
+            if item == 0: index_values_0.append(item) 
+            elif item == 1: index_values_1.append(item) 
+            else: index_values_2.append(item) 
 
-                return np.setdiff1d(keys,keys_with_value_0)
+                        
+        num_zeros = index_values_0.size
+        num_ones = index_values_1.size 
+        num_twos = index_values_2.size
+        keys = np.array(['C','D','B','E'])
+        opposite_keys = np.array(['B','E','C','D'])
+
+        if(piece[0] == 'F'):
+            if num_ones == 1:
+                """feito, creio"""
+                return ['F'+keys[item]+'1' for item in index_values1]    
+            elif num_zeros > 0:
+                return ['F' + keys[item] + '1' for item in index_values_2]
             else:
                 return["FC1","FD1","FB1","FE1"]
 
 
         elif(piece[0] == 'B'):
-            """"maybe desnecessaario esta cena de cima logo se ve"""
-            if np.count_nonzero(connections = 0) == 1:
-                index_value_0 = connections.index(0)
-                return ['B'+opposite_keys[index_value_0+'1']]
+            """feito, creio"""
+            if num_zeros == 1:
+                return ['B'+opposite_keys[item] +'1' for item in index_values_0]
 
-            elif np.count_nonzero(connections = 1) > 0:
-                index_values1 = np.where(connections == 1)[0]
-                return np.setdiff1d(keys,index_values1)
+            elif num_ones > 0:
+                return ['B' + keys[item] + '1' for item in index_values_1+index_values_2]
             else:
                 return["BC1","BD1","BB1","BE1"]
         
@@ -228,17 +242,14 @@ class Board:
 
         else: # é ligação, L
             #ver quais ligam
-            index_values1 = np.where(connections = 1)[0]
-            if(len(index_values1) != 0 ):
-                if np.isin(index_values1,0) or np.isin(index_values0,2): return "LV1"
-                else: return "LH1"
-
-            index_values0 = np.where(connections = 0)[0]
-            if(len(index_value_0)!=0):
-                if np.isin(index_value_0,0) or np.isin(index_value_0,2): return "LH1"
-                else: return "LV1"
-            
-            return ["LV1","LH1"]
+            if num_zeros > 0:
+                if index_values_0[0] == 0 or index_values_0[0] ==2: return "LH1"
+                else: return ["LV1"]
+            elif num_ones > 0:
+                if index_values_1[0] == 0 or index_values_1[0] ==2: return "LV1"
+                else: return ["LH1"]
+            else:   return ["LV1","LH1"]          
+          
 
     
 
@@ -257,7 +268,7 @@ class Board:
         rows = []
         with open(file_name, 'r') as file:
             for line in file:
-                rows.append(np.array([i + '0' for i in line.split()]))
+                rows.append(np.array([i + '00' for i in line.split()]))
                 
 
         grid = np.stack(rows)
@@ -299,8 +310,118 @@ class PipeMania(Problem):
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
 
-        dfs_nodes_count = 0
+        dfs_max_depth = 0
         
+        state.board = copy.deepcopy(self.board)
+        stack = [(0,0), 0] # the position and depth of the piece
+        while stack:
+            row, col, depth = stack.pop()
+            value = state.board.get_value(row,col)
+            if value[3] != '1':
+                state.board[row][col][3] = '1'
+                dfs_max_depth = max(dfs_max_depth, depth)
+                above_value, below_value = state.board.adjaceWnt_vertical_values(row, col)
+                right_value, left_value = state.board.adjacent_horizontal_values(row, col)
+
+                if(value[0] == 'F'):
+                    if(value[1] == 'C'):
+                        if (above_value != None and np.isin(above_value[0:2], point_down)):
+                            #lista para saber os que estão ligados por cima
+
+
+                    elif(value[1] == 'B'):
+                        if (below_value != None and np.isin(below_value[0:2], point_up)):
+                            #lista para saber os que estão ligados por baixo
+
+                    elif(value[1] == 'E'):
+                        if(left_value != None and np.isin(left_value[0:2], point_right)):
+                            #lista para saber os que estão ligados pela esquerda
+
+
+                    else: # é direita D
+                        
+                        if(right_value != None and np.isin(right_value[0:2], point_left)):
+                            #lista para saber os que estão ligados pela direita
+
+
+                elif(value[0] == 'B'):
+                    if(value[1] == 'C' or value[1] == 'B' or value[1] == 'E'):
+                        if(left_value != None and np.isin(left_value[0:2], point_right)):
+
+                    if(value[1] == 'C' or value[1] == 'E' or value[1] == 'D'):
+                        if(above_value != None and np.isin(above_value[0:2], point_down)):
+                    
+                    if(value[1] == 'C' or value[1] == 'B' or value[1] == 'D'):
+                        if(right_value != None and np.isin(right_value[0:2], point_left)):
+
+                    if(value[1] == 'B' or value[1] == 'E' or value[1] == 'D'):
+                        if(below_value != None and np.isin(below_value[0:2], point_up)):
+
+                         
+
+                elif(value[0] == 'V'):
+                    if(value[1] == 'C' or value[1] == 'D'):
+                        if(above_value != None and np.isin(above_value[0:2], point_down)):
+                        
+                    if(value[1] == 'B' or value[1] == 'D'):
+                        if(right_value != None and np.isin(right_value[0:2], point_left)):
+
+                    if(value[1] == 'B' or value[1] == 'E'):
+                        if(below_value != None and np.isin(below_value[0:2], point_up)):
+
+                    if(value[1] == 'C' or value[1] == 'E'):
+                        if(left_value != None and np.isin(left_value[0:2], point_right)):
+
+                else: # é ligação L
+                    if(value[1] == 'H'):
+                        if(above_value != None and np.isin(above_value[0:2], point_down)):
+                        
+                        if(below_value != None and np.isin(below_value[0:2], point_up)):
+                        
+                    elif(value[1] == 'V'):
+
+                        if(right_value != None and np.isin(right_value[0:2], point_left)):
+
+                        if(left_value != None and np.isin(left_value[0:2], point_right)):
+
+
+
+
+
+
+
+        '''
+        conditions:
+        --- para sabermos se as peças adjacentes estão corretamente 
+        colocadas, testamos com as listas que criámos
+
+        --- ao passarmos para um novo node, colocamos as peças adjacentes
+        ligadas dentro da Stack
+
+        --- sempre que passamos para um novo node, verificamos se a
+        current_height > max_height, se sim, atualizamos
+
+        --- caso não seja possível andar mais porque não estão corretamente
+        ligadas, paramos e goal_test = False
+
+        --- caso cheguemos a uma fonte/node que já visitámos, continuamos só
+
+        --- IMPORTANTE -> caso a DFS acabe e max_height < goal_test, significa
+        que temos um mini ciclo dentro do board, por isso goal_test = False
+            NÃO SEI SE É POSSÍVEL FAZER, MAS NESTE ÚLTIMO CASO, DEVIAS LOGO DIZER QUE
+            ESTÁS NO CAMINHO ERRADO, OU SEJA, CAGAS NESTA RAMIFICAÇÃO
+
+        '''
+
+
+
+
+
+
+
+
+
+
         
         return False
 
