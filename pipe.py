@@ -203,10 +203,20 @@ class Board:
         index_values_2 = []
         index_values_1 = []
         index_values_0 = []
+
+        num_zeros = 0
+        num_ones = 0
+        num_twos =  0
         for item in connections:
-            if item == 0: index_values_0.append(item) 
-            elif item == 1: index_values_1.append(item) 
-            else: index_values_2.append(item) 
+            if item == 0: 
+                index_values_0.append(item) 
+                num_zeros+=1
+            elif item == 1:
+                index_values_1.append(item)
+                num_ones+=1 
+            else: 
+                index_values_2.append(item) 
+                num_twos+=1
 
                         
         num_zeros = index_values_0.size
@@ -238,7 +248,26 @@ class Board:
 
         elif(piece[0] == 'V'):
             #TODO
-            return
+            if num_ones == 2:
+                if index_values_1[0] == 0 and index_values_1 [1] == 3:
+                    return  ["VC1"]
+                else:
+                    return 'V' + keys[index_values_1[1]] + '1'
+            elif num_zeros == 2:
+                if index_values_0[0] == 0 and index_values_0 [1] == 3:
+                    return ["VB1"]
+                else:
+                    return 'V' + opposite_keys[index_values_0[1]] + '1'
+
+                return
+            elif num_zeros == 1 and num_ones == 1:
+                if(index_values_0[0] + index_values_1[0]) % 2 == 0: return["VC1","VD1","VB1","VE1"]
+                elif:
+                else:
+
+                return
+            else:
+                return["VC1","VD1","VB1","VE1"]
 
         else: # é ligação, L
             #ver quais ligam
