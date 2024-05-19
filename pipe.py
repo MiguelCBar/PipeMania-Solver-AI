@@ -65,7 +65,7 @@ class Board:
     def set_value(self,row: int, col: int, value: int):
         self.grid[row][col][1] = value
 
-    def rotate_piece(self,row: int, col: int, rotation: int):
+    def rotate_piece(self,row: int, col: int, rotation: str):
         #C B E D, H V
         newpiece = self.get_value(row,col)[0] + rotation + '1'
         self.grid[row][col] = newpiece
@@ -119,7 +119,7 @@ class Board:
         baixo_neighbor = self.adjacent_vertical_values(row, col)[1] # maybe errado
         if baixo_neighbor== None: return 0
         elif piece[2] == '0': return 2
-        elif np.isin(piece[0,2],connected_pieces): return 1
+        elif np.isin(piece,connected_pieces): return 1
         else: return 0
    
     """ Ve se a peca a esquerda da dada esta conectada ou nao. 
@@ -219,16 +219,16 @@ class Board:
                 num_twos+=1
 
                         
-        num_zeros = index_values_0.size
-        num_ones = index_values_1.size 
-        num_twos = index_values_2.size
+        num_zeros = len(index_values_0)
+        num_ones = len(index_values_1)
+        num_twos = len(index_values_2)
         keys = np.array(['C','D','B','E'])
         opposite_keys = np.array(['B','E','C','D'])
 
         if(piece[0] == 'F'):
             if num_ones == 1:
                 """feito, creio"""
-                return ['F'+keys[item]+'1' for item in index_values1]    
+                return ['F'+keys[item]+'1' for item in index_values_1]    
             elif num_zeros > 0:
                 return ['F' + keys[item] + '1' for item in index_values_2]
             else:
@@ -248,24 +248,29 @@ class Board:
 
         elif(piece[0] == 'V'):
             #TODO
-            if num_ones == 2:
-                if index_values_1[0] == 0 and index_values_1 [1] == 3:
+            if num_ones == 2: #se tem 2 pecas a apontarem lhe
+                if index_values_1[0] == 0 and index_values_1 [1] == 3: #e preciso caso especifico porque os numeros nao tem diferença de 1
                     return  ["VC1"]
                 else:
                     return 'V' + keys[index_values_1[1]] + '1'
-            elif num_zeros == 2:
+            elif num_zeros == 2: #se tem duas pecas 
                 if index_values_0[0] == 0 and index_values_0 [1] == 3:
                     return ["VB1"]
                 else:
                     return 'V' + opposite_keys[index_values_0[1]] + '1'
-
-                return
             elif num_zeros == 1 and num_ones == 1:
-                if(index_values_0[0] + index_values_1[0]) % 2 == 0: return["VC1","VD1","VB1","VE1"]
-                elif:
-                else:
-
-                return
+                if(index_values_0[0] + index_values_1[0]) % 2 == 0: #se os valores forem opostos ha duas hipoteses
+                    return ['V' + keys[index_values_1[0]] + '1', 'V' + keys[index_values_1[0] -1 ] + '1']
+                elif index_values_0[0] == (index_values_1[0] + 1) % 4:
+                    return ['V' + keys[index_values_1[0]] + '1']
+                elif index_values_0[0] == (index_values_1[0] - 1) % 4:
+                    return ['V' + keys[index_values_1[0] - 1] + '1']
+            elif num_zeros == 0 and num_ones == 1: #neste ponto so ha um conected, duas hipoteses    
+                indexes = [index_values_1[0], (index_values_1[0] + 1)%4]
+                return ['V' + keys[item] + '1' for item in indexes]
+            elif num_zeros == 1 and num_ones == 0: #
+                indexes =[(index_values_0[0] + 2) % 4 , (index_values_0[0] + 3) % 4]
+                return ['V' + keys[item] + '1' for item in indexes]            
             else:
                 return["VC1","VD1","VB1","VE1"]
 
