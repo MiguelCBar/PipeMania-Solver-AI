@@ -17,10 +17,17 @@ from search import (
     recursive_best_first_search,
 )
 
-point_up = ["BC","BE","BD","VC","VD","LV","FC"]
-point_down = ["BB","BE","BD","VE","VB","LV","FB"]
-point_left = ["BC","BB","BD","VC","VE","LH","FE"]
-point_right = ["BC","BB","BE","VB","VD","LH","FD"]
+convert_piece = {"FC": "1000", "FB": "0010", "FE": "0001", "FD": "0100",
+                  "BC": "1101", "BB": "0111", "BE": "1011", "BD": "1110",
+                  "VC": "1001", "VB": "0110", "VE": "0011", "VD": "1100",
+                  "LH": "0101", "LV": "1010"}
+
+
+
+point_up = np.array(["BC","BE","BD","VC","VD","LV","FC"])
+point_down = np.array(["BB","BE","BD","VE","VB","LV","FB"])
+point_left = np.array(["BC","BB","BD","VC","VE","LH","FE"])
+point_right = np.array["BC","BB","BE","VB","VD","LH","FD"]
 
 class PipeManiaState:
     state_id = 0
@@ -43,24 +50,17 @@ class Board:
     """Representação interna de um tabuleiro de PipeMania."""
     def __init__(self, grid):
         self.grid = grid
-        self.size = len(grid)
-
-    def is_F(self, row: int, col: int) -> bool:
-        return self.grid(row, col)[0] == 'F'
-
-    def is_B(self, row: int, col: int) -> bool:
-        return self.grid(row, col)[0] == 'B'
-
-    def is_V(self, row: int, col: int) -> bool: 
-        return self.grid(row, col)[0] == 'V'
-        
-    def is_L(self, row: int, col: int) -> bool:
-        return self.grid(row, col)[0] == 'L'      
+        self.size = len(grid) 
 
 
     def get_value(self, row: int, col: int) -> str:
-        """Devolve o valor na respetiva posição do tabuleiro."""
+        """Devolve o valor na respetiva posição do tabuleiro e
+        se a peça foi vista"""
         return self.grid[row][col]
+    
+    def get_piece(self, row: int, col: int) -> str:
+        """Devolve o valor na respetiva posição do tabuleiro"""
+        return self.grid[row][col][0:2]
     
     def set_value(self,row: int, col: int, value: int):
         self.grid[row][col][1] = value
@@ -70,6 +70,11 @@ class Board:
         newpiece = self.get_value(row,col)[0] + rotation + '1'
         self.grid[row][col] = newpiece
         return
+    
+    def rotate_left(piece_binary: str, positions: int):
+        """Faz um certo número de rotações de uma peça"""
+        return piece_binary[positions:] + piece_binary[positions]
+    
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente acima e abaixo,
@@ -87,6 +92,13 @@ class Board:
         right_value = self.get_value(row,col+1) if col < self.size else None
         return left_value,right_value
 
+    def get_adjacent_values(self, row: int, col: int):
+        
+        (cima,baixo) = self.adjacent_vertical_values(row,col)
+        (esquerda,direita) = self.adjacent_horizontal_values(row,col)
+        return (cima,direita,baixo,esquerda)
+
+
     def print_grid(self):
         # TODO
         
@@ -97,55 +109,33 @@ class Board:
             print(aux)
         return
     
+    
+
+    
     def piece_corrected(self, row: int,  col: int): 
         return self.get_value(self, row,col)[2] == '1'
 
-    """ Ve se a peca em cima da dada esta conectada ou nao. 
-    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
-    def connected_cima(self, row: int, col: int):  
-        connected_pieces = np.array(["BC","BE","BD","VC","VD","LV","FC"])#verificar
-        piece = self.get_value(row, col)
-        cima_neighbor = self.adjacent_vertical_values(row, col)[0] # maybe errado
-        if cima_neighbor== None: return 0
-        elif piece[2] == '0': return 2
-        elif np.isin(piece,connected_pieces): return 1
-        else: return 0
 
-    """ Ve se a peca a baixo da dada esta conectada ou nao. 
-    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
-    def connected_baixo(self, row: int, col: int):  
-        connected_pieces = np.array(["BB","BE","BD","VE","VB","LV","FB"])#verificar
-        piece = self.get_value(row, col)
-        baixo_neighbor = self.adjacent_vertical_values(row, col)[1] # maybe errado
-        if baixo_neighbor== None: return 0
-        elif piece[2] == '0': return 2
-        elif np.isin(piece,connected_pieces): return 1
-        else: return 0
-   
-    """ Ve se a peca a esquerda da dada esta conectada ou nao. 
-    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
-    def connected_esq(self, row: int, col: int):  
-        connected_pieces = np.array(["BC","BB","BD","VC","VE","LH","FE"]) #verificar
-        piece = self.get_value(row, col)
-        cima_neighbor = self.adjacent_horizontal_values(row, col)[0] # maybe errado
-        if cima_neighbor== None: return 0
-        elif piece[2] == '0': return 2
-        elif np.isin(piece,connected_pieces): return 1
-        else: return 0
+    def connections(self, row: int, col: int):
+        
+        vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda = self.get_adjacent_values(row,col)
+        vizinhos = (vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda)
+        res = [2,2,2,2] # =inicializar como desconhecido
 
-
-    """ Ve se a peca a direita da dada esta conectada ou nao. 
-    Devolve 0 se nao tiver, 1 se tiver e 2 se for inconclusivo  """
-    def connected_dir(self, row: int, col: int):  
-        connected_pieces = np.array(["BC","BB","BE","VB","VD","LH","FD"]) #verificar
-        piece = self.get_value(row, col)
-        cima_neighbor = self.adjacent_horizontal_values(row, col)[1] # maybe errado
-        if cima_neighbor== None: return 0
-        elif cima_neighbor[2] == '0': return 2
-        elif np.isin(piece,connected_pieces): return 1
-        else: return 0
-
-
+        for i in range(4):
+            if vizinhos[i] == None: res[i] = 0 #ve se o visinho e none
+            elif vizinhos[i][2] == '0' : res[i] = 2 # ve se ainda nao foi tratado
+            elif convert_piece[vizinhos[i]][(i + 2) % 4] == 1: #converte para bits e ve se o vizinho aponta para a peça
+                peca = self.get_piece(row,col) #ver o caso de duas fontes uma contra a outra
+                if peca[0] == 'F' and vizinhos[i][0] == 'F' : res [i] = 0
+                else: res [i] = 1 
+                
+            else: res[i] = 0 #senao nao aponta
+        
+        return res
+            
+        
+            
     
 
 
@@ -191,20 +181,29 @@ class Board:
                 self.grid(row,self.size)[1] = 'E'
 
 
-    """devolve as possiveis orientacoes da peca com base nos seus vizinhos
-        nao altera a peça"""
     def comparisons(self, row: int, col: int):
+        """devolve as possiveis  orientacoes da peca com base nos seus vizinhos
+        nao altera a peça"""  
+        piece = self.get_value(row,col)
+
+        if(piece[2] == '1'):
+            return None
+        
+
+
+        return
+    
+    def comparisons_old(self, row: int, col: int):
         piece = self.get_value(row, col)
         if(piece[2] == '1'):
             return [piece]
 
-        connections= np.array([self.connected_cima(row,col),self.connected_dir(row,col),
-                              self.connected_baixo(row,col),self.connected_esq(row,col)])
+        connections= self.connections(row, col)
         index_values_2 = []
         index_values_1 = []
         index_values_0 = []
 
-        num_zeros = 0
+        num_zeros = 0   # 0 significa que
         num_ones = 0
         num_twos =  0
         for item in connections:
@@ -218,25 +217,19 @@ class Board:
                 index_values_2.append(item) 
                 num_twos+=1
 
-                        
-        num_zeros = len(index_values_0)
-        num_ones = len(index_values_1)
-        num_twos = len(index_values_2)
         keys = np.array(['C','D','B','E'])
         opposite_keys = np.array(['B','E','C','D'])
 
         if(piece[0] == 'F'):
-            if num_ones == 1:
-                """feito, creio"""
-                return ['F'+keys[item]+'1' for item in index_values_1]    
-            elif num_zeros > 0:
+            if num_ones == 1:    
+                return ['F'+keys[index_values_1[0]]+'1']    
+            else: #no caso de duas fontes estarem adjacentes sao resolvidas no connections dando 0                 
                 return ['F' + keys[item] + '1' for item in index_values_2]
-            else:
-                return["FC1","FD1","FB1","FE1"]
+        
 
 
         elif(piece[0] == 'B'):
-            """feito, creio"""
+            
             if num_zeros == 1:
                 return ['B'+opposite_keys[item] +'1' for item in index_values_0]
 
@@ -302,7 +295,7 @@ class Board:
         rows = []
         with open(file_name, 'r') as file:
             for line in file:
-                rows.append(np.array([i + '00' for i in line.split()]))
+                rows.append(np.array([i + '0' for i in line.split()]))
                 
 
         grid = np.stack(rows)
@@ -324,8 +317,31 @@ class PipeMania(Problem):
     def actions(self, state: PipeManiaState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        # TODO
-        pass
+        
+        board = state.board.grid, size = state.board.size
+        
+        for i in range(size):
+            for j in range(size):
+                
+                piece_value = state.board.getvalue(i, j)
+                if(piece_value[2] == '1'):
+                    pass                
+                
+                rotations = 0
+                #aqui, usar o comparisons para uma peça, que te devolve uma lista
+                    #com todos os possíveis casos
+                    
+                    
+                if len(rotations) == 1:
+                    return rotations
+                
+                
+                
+                    
+                
+
+                
+                
 
     def result(self, state: PipeManiaState, action) -> PipeManiaState:
         """Retorna o estado resultante de executar a 'action' sobre
@@ -344,81 +360,67 @@ class PipeMania(Problem):
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
 
-        dfs_max_depth = 0
+
+
+        #perguntar sobre collections deque
         
-        state.board = copy.deepcopy(self.board)
-        stack = [(0,0), 0] # the position and depth of the piece
-        while stack:
-            row, col, depth = stack.pop()
-            value = state.board.get_value(row,col)
-            if value[3] != '1':
-                state.board[row][col][3] = '1'
-                dfs_max_depth = max(dfs_max_depth, depth)
-                above_value, below_value = state.board.adjaceWnt_vertical_values(row, col)
-                right_value, left_value = state.board.adjacent_horizontal_values(row, col)
 
-                if(value[0] == 'F'):
-                    if(value[1] == 'C'):
-                        if (above_value != None and np.isin(above_value[0:2], point_down)):
-                            #lista para saber os que estão ligados por cima
+        pieces_seen_count = 0
+        board_grid = state.board.grid, board_size = state.board.size
+        seen_pieces = set()
+        stack_pieces = []
+        stack_pieces.append((0, 0))
+        while stack_pieces:
+            current_piece = stack_pieces.pop()
+            if current_piece in seen_pieces:
+                pass
+            else:
+                pieces_seen_count +=1
+                seen_pieces.add((current_piece[0], current_piece[1]))
+                piece_value = state.board.get_piece(current_piece[0], current_piece[1])
+                pieces_adjacent = state.board.get_adjacent_values() #definir C D B E, isto tem os valores
 
+                for i in range(4):
+                    if convert_piece[piece_value][i] == 1:
+                        #falta colocar para verificar os Nones, porque caso seja um None,
+                        #não é preciso comparar com nada
+                        if (i == 0 and pieces_adjacent[0] != None and \
+                            convert_piece[pieces_adjacent[0]][2] == 1):
 
-                    elif(value[1] == 'B'):
-                        if (below_value != None and np.isin(below_value[0:2], point_up)):
-                            #lista para saber os que estão ligados por baixo
+                            stack_pieces.append((current_piece[0]+1, current_piece[1]))
 
-                    elif(value[1] == 'E'):
-                        if(left_value != None and np.isin(left_value[0:2], point_right)):
-                            #lista para saber os que estão ligados pela esquerda
-
-
-                    else: # é direita D
                         
-                        if(right_value != None and np.isin(right_value[0:2], point_left)):
-                            #lista para saber os que estão ligados pela direita
+                        elif i == 1 and pieces_adjacent[i] != None and \
+                            convert_piece[pieces_adjacent[i]][3] == 1:
+
+                            stack_pieces.append((current_piece[0], current_piece[1]+1))
 
 
-                elif(value[0] == 'B'):
-                    if(value[1] == 'C' or value[1] == 'B' or value[1] == 'E'):
-                        if(left_value != None and np.isin(left_value[0:2], point_right)):
+                        elif i == 2 and pieces_adjacent[i] != None and \
+                            convert_piece[pieces_adjacent[i]][0] == 1:
 
-                    if(value[1] == 'C' or value[1] == 'E' or value[1] == 'D'):
-                        if(above_value != None and np.isin(above_value[0:2], point_down)):
+                            stack_pieces.append((current_piece[0]-1, current_piece[1]))
+
+
+                        elif i == 3 and pieces_adjacent[i] != None and \
+                            convert_piece[pieces_adjacent[i]][1] == 1:
+
+                            stack_pieces.append((current_piece[0], current_piece[1]-1))
+                        
+
+                        else:
+                            return False
+                        
+
+                    else:
+                        pass
+
                     
-                    if(value[1] == 'C' or value[1] == 'B' or value[1] == 'D'):
-                        if(right_value != None and np.isin(right_value[0:2], point_left)):
-
-                    if(value[1] == 'B' or value[1] == 'E' or value[1] == 'D'):
-                        if(below_value != None and np.isin(below_value[0:2], point_up)):
-
-                         
-
-                elif(value[0] == 'V'):
-                    if(value[1] == 'C' or value[1] == 'D'):
-                        if(above_value != None and np.isin(above_value[0:2], point_down)):
-                        
-                    if(value[1] == 'B' or value[1] == 'D'):
-                        if(right_value != None and np.isin(right_value[0:2], point_left)):
-
-                    if(value[1] == 'B' or value[1] == 'E'):
-                        if(below_value != None and np.isin(below_value[0:2], point_up)):
-
-                    if(value[1] == 'C' or value[1] == 'E'):
-                        if(left_value != None and np.isin(left_value[0:2], point_right)):
-
-                else: # é ligação L
-                    if(value[1] == 'H'):
-                        if(above_value != None and np.isin(above_value[0:2], point_down)):
-                        
-                        if(below_value != None and np.isin(below_value[0:2], point_up)):
-                        
-                    elif(value[1] == 'V'):
-
-                        if(right_value != None and np.isin(right_value[0:2], point_left)):
-
-                        if(left_value != None and np.isin(left_value[0:2], point_right)):
 
 
+        if(pieces_seen_count < self.goal):
+            return False
+        return True
 
 
 
