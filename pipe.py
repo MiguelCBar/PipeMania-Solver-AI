@@ -23,11 +23,13 @@ convert_piece = {"FC": "1000", "FB": "0010", "FE": "0001", "FD": "0100",
                   "LH": "0101", "LV": "1010"}
 
 
+convert_piece_F = ["1000", "0100", "0010", "0001"]
+convert_piece_B = ["1101", "1110", "0111", "1011"]
+convert_piece_V = ["1001", "1100", "0110", "0011"]
+convert_piece_L = ["0101", "1010"]
 
-point_up = np.array(["BC","BE","BD","VC","VD","LV","FC"])
-point_down = np.array(["BB","BE","BD","VE","VB","LV","FB"])
-point_left = np.array(["BC","BB","BD","VC","VE","LH","FE"])
-point_right = np.array["BC","BB","BE","VB","VD","LH","FD"]
+flag = {"pre_process": True}
+
 
 class PipeManiaState:
     state_id = 0
@@ -62,8 +64,8 @@ class Board:
         """Devolve o valor na respetiva posição do tabuleiro"""
         return self.grid[row][col][0:2]
     
-    def set_value(self,row: int, col: int, value: int):
-        self.grid[row][col][1] = value
+    def set_value(self,row: int, col: int, value: str):
+        self.grid[row][col] = value
 
     def rotate_piece(self,row: int, col: int, rotation: str):
         #C B E D, H V
@@ -71,16 +73,12 @@ class Board:
         self.grid[row][col] = newpiece
         return
     
-    def rotate_left(piece_binary: str, positions: int):
-        """Faz um certo número de rotações de uma peça"""
-        return piece_binary[positions:] + piece_binary[positions]
-    
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str): # type: ignore
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
         above_value = self.get_value(row-1,col) if row > 0 else None
-        below_value = self.get_value(row+1,col) if row < self.size else None
+        below_value = self.get_value(row+1,col) if row < self.size - 1 else None
         return above_value,below_value
 
 
@@ -88,8 +86,8 @@ class Board:
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
         self.get_value(row,col)
-        left_value = self.get_value(row,col-1) if col > 0 else None
-        right_value = self.get_value(row,col+1) if col < self.size else None
+        left_value = self.get_value(row, col-1) if col > 0 else None
+        right_value = self.get_value(row, col+1) if col < self.size - 1 else None
         return left_value,right_value
 
     def get_adjacent_values(self, row: int, col: int):
@@ -105,7 +103,10 @@ class Board:
         for i in range(self.size):
             aux = "" 
             for j in range(self.size):
-                aux = aux + self.get_value(i, j)[:2] + " "
+                if(j == self.size - 1):
+                    aux = aux + self.get_value(i, j)[:2]
+                else:
+                    aux = aux + self.get_value(i, j)[:2] + "\t"
             print(aux)
         return
     
@@ -113,7 +114,7 @@ class Board:
 
     
     def piece_corrected(self, row: int,  col: int): 
-        return self.get_value(self, row,col)[2] == '1'
+        return self.get_value(row,col)[2] == '1'
 
 
     def connections(self, row: int, col: int):
@@ -121,18 +122,16 @@ class Board:
         vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda = self.get_adjacent_values(row,col)
         vizinhos = (vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda)
         res = [2,2,2,2] # =inicializar como desconhecido
-
+        num_ones = 0
+        piece = self.get_piece(row,col) #ver o caso de duas fontes uma contra a outra
         for i in range(4):
-            if vizinhos[i] == None: res[i] = 0 #ve se o visinho e none
-            elif vizinhos[i][2] == '0' : res[i] = 2 # ve se ainda nao foi tratado
-            elif convert_piece[vizinhos[i]][(i + 2) % 4] == 1: #converte para bits e ve se o vizinho aponta para a peça
-                peca = self.get_piece(row,col) #ver o caso de duas fontes uma contra a outra
-                if peca[0] == 'F' and vizinhos[i][0] == 'F' : res [i] = 0
-                else: res [i] = 1 
-                
+            if (vizinhos[i] == None) or (piece[0] == 'F' and vizinhos[i][0] == 'F'): res[i] = 0 #ve se o visinho e none
+            elif vizinhos[i][2] == '0' : res[i] = 2 # vê se ainda nao foi tratado
+            elif convert_piece[vizinhos[i][0:2]][(i + 2) % 4] == '1': #converte para bits e vê se o vizinho aponta para a peça
+                    res [i] = 1 
+                    num_ones +=1
             else: res[i] = 0 #senao nao aponta
-        
-        return res
+        return (res, num_ones)
             
         
             
@@ -179,68 +178,201 @@ class Board:
                 self.grid(row,0)[2] = '1'
             elif(self.is_B(row,self.size)):
                 self.grid(row,self.size)[1] = 'E'
+    
+
 
 
     def comparisons(self, row: int, col: int):
-        """devolve as possiveis  orientacoes da peca com base nos seus vizinhos
-        nao altera a peça"""  
-        piece = self.get_value(row,col)
 
-        if(piece[2] == '1'):
-            return None
-        
-
-
-        return
-    
-    def comparisons_old(self, row: int, col: int):
         piece = self.get_value(row, col)
-        if(piece[2] == '1'):
-            return [piece]
+        connections, num_ones = self.connections(row, col)
+        '''
+        No connections, devolve um array de len = 4 com o seguinte formato:
+            -> Se for 0, ou o adjacente é None ou foi visto e não aponta
+                - CASO ESPECÍFICO: Se estivermos a tratar uma peça que seja um 
+                'F', retorna 0 se o adjacente também o for
+            -> Se for 1, o adjacente já foi visto e aponta para a peça
+            -> Se for 2, o adjacente já foi visto, mas não aponta para a peça
+        '''
+        rotations = []
+        possible_piece = True
+        keys = ['C','D','B','E']
+        keys_L = ['H', 'V']
+
+        j = 0
+        if(piece[0] == 'F'):
+            if(num_ones > 1):
+                return rotations
+            for binary_piece in convert_piece_F:
+                possible_piece = True
+                for i in range(4):
+                    if (binary_piece[i] == '1' and connections[i] == 0) or (binary_piece[i] == '0' and connections[i] == 1):
+                        possible_piece = False
+                        break
+                
+                if possible_piece:
+                    rotations.append('F' + keys[j] + '1')
+                j+= 1
+
+            return rotations
+
+        elif(piece[0] == 'B'):
+            if(num_ones > 3):
+                return rotations
+            for binary_piece in convert_piece_B:
+                possible_piece = True
+                
+                for i in range(4):
+                    if (binary_piece[i] == '1' and connections[i] == 0) or (binary_piece[i] == '0' and connections[i] == 1):
+                        possible_piece = False
+                        break
+                
+                if possible_piece:
+                    rotations.append('B' + keys[j] + '1')
+                j+= 1
+
+            return rotations
+
+
+        elif(piece[0] == 'V'):
+            if(num_ones > 2):
+                return rotations
+            for binary_piece in convert_piece_V:
+                possible_piece = True
+                for i in range(4):
+                    if (binary_piece[i] == '1' and connections[i] == 0) or (binary_piece[i] == '0' and connections[i] == 1):
+                        possible_piece = False
+                        break
+                
+                if possible_piece:
+                    rotations.append('V' + keys[j] + '1')
+                j+= 1
+            return rotations
+
+        else:   # é ligação (L)
+            if(num_ones > 2):
+                return rotations
+            for binary_piece in convert_piece_L:
+                possible_piece = True
+                for i in range(4):
+                    if (binary_piece[i] == '1' and connections[i] == 0) or (binary_piece[i] == '0' and connections[i] == 1):
+                        possible_piece = False
+                        break
+                
+                if possible_piece:
+                    
+                    rotations.append('L' + keys_L[j] + '1')
+                j+=1
+
+            return rotations
+
+
+
+    '''
+    def talvez_funcione_comparisons(self, row: int, col: int):
+        piece = self.get_piece(row, col)
+        adjacents = self.get_adjacent_values(row, col)
+
+        rotations = []
+
+        keys = np.array(['C','D','B','E'])
+        opposite_keys = np.array(['B','E','C','D'])
+        completed = False
+
+        if(piece[0] == 'F'):
+            for i in range(4):
+                if(adjacents[i] != None and adjacents[i][0] != 'F'):
+                    if(completed == False and adjacents[i][2] == '1'):
+                       if(convert_piece[adjacents[i][0:2]][(i + 2) % 4] == '1'):
+                        rotations = ['F' + keys[i] + '1']
+                        completed = True
+                       else:
+                           pass
+
+                    elif(adjacents[i][2] == '0'):
+                        if(completed == False):
+                            rotations.append('F' + keys[i] + '1')
+                        else:
+                            pass
+                    else:
+                        return []
+
+        elif(piece[0] == 'B'):
+            indexs = []
+
+            for i in range(4):
+                if adjacents[i][2] == '1':
+                    if(convert_piece[adjacents[i][0:2]][(i + 2) % 4] == '0'):
+                        if(completed == False):
+                            rotations = ['B' + opposite_keys[i] + '1']
+                            completed = True
+                        else:
+                            return []
+                    else:
+                        if(completed == False):
+                            rotations.append(['B' + keys[i] + '1'])
+
+                    else:
+
+                else:
+                    if(completed == False):
+                        rotations.append(['B' + keys[i] + '1'])
+
+        elif(piece[0] == 'V'):
+
+        else: #é uma ligação (L)
+            binary_piece = convert_piece[piece]
+            for i in range(4):
+                if adjacents[i] == None:
+
+        return rotations
+
+
+
+    def comparisons(self, row: int, col: int):
+        piece = self.get_value(row, col)
 
         connections= self.connections(row, col)
         index_values_2 = []
         index_values_1 = []
         index_values_0 = []
 
-        num_zeros = 0   # 0 significa que
-        num_ones = 0
-        num_twos =  0
-        for item in connections:
-            if item == 0: 
-                index_values_0.append(item) 
+        num_zeros = 0   # 0 significa que ou o adjacente em questão é None ou não aponta para a peça
+        num_ones = 0    # 1 significa que o vizinho aponta para a peça
+        num_twos =  0   # 2 significa que não temos a certeza da posição do adjacente
+        for index in range(len(connections)):
+            if index == 0:               
+                index_values_0.append(index) 
                 num_zeros+=1
-            elif item == 1:
-                index_values_1.append(item)
+            elif index == 1:
+                index_values_1.append(index)
                 num_ones+=1 
             else: 
-                index_values_2.append(item) 
+                index_values_2.append(index) 
                 num_twos+=1
 
         keys = np.array(['C','D','B','E'])
         opposite_keys = np.array(['B','E','C','D'])
 
+
         if(piece[0] == 'F'):
             if num_ones == 1:    
-                return ['F'+keys[index_values_1[0]]+'1']    
-            else: #no caso de duas fontes estarem adjacentes sao resolvidas no connections dando 0                 
+                return ['F'+keys[index_values_1[0]]+'1']   
+            
+            elif(num_ones < 1 and num_zeros != 4): #no caso de duas fontes estarem adjacentes sao resolvidas no connections dando 0                 
                 return ['F' + keys[item] + '1' for item in index_values_2]
         
-
 
         elif(piece[0] == 'B'):
             
             if num_zeros == 1:
-                return ['B'+opposite_keys[item] +'1' for item in index_values_0]
+                return ['B'+opposite_keys[item] + '1' for item in index_values_0]
 
-            elif num_ones > 0:
+            elif(num_zeros < 1):
                 return ['B' + keys[item] + '1' for item in index_values_1+index_values_2]
-            else:
-                return["BC1","BD1","BB1","BE1"]
-        
+
 
         elif(piece[0] == 'V'):
-            #TODO
             if num_ones == 2: #se tem 2 pecas a apontarem lhe
                 if index_values_1[0] == 0 and index_values_1 [1] == 3: #e preciso caso especifico porque os numeros nao tem diferença de 1
                     return  ["VC1"]
@@ -267,19 +399,24 @@ class Board:
             else:
                 return["VC1","VD1","VB1","VE1"]
 
+
         else: # é ligação, L
             #ver quais ligam
-            if num_zeros > 0:
-                if index_values_0[0] == 0 or index_values_0[0] ==2: return "LH1"
-                else: return ["LV1"]
-            elif num_ones > 0:
-                if index_values_1[0] == 0 or index_values_1[0] ==2: return "LV1"
-                else: return ["LH1"]
-            else:   return ["LV1","LH1"]          
-          
+                if num_zeros > 0 and num_zeros < 3:
+                    if (index_values_0[0] == 0 or index_values_0[0] == 2) and \
+                        (index_values_0[1] != 1 or index_values_0[1] != 3): return ["LH1"]
+                    
+                    if(0 in index_values_0 and 1 not in index_values_0): return ["LH1"]
+                    else: return ["LV1"]
 
-    
+                elif num_ones > 0 and num_ones < 3:
+                    if index_values_1[0] == 0 or index_values_1[0] == 2: return ["LV1"]
+                    elif index_values_1[0] == 1 or index_values_1[0] : return ["LH1"]
+                elif(num_ones == 0 and num_zeros == 0):   return ["LV1","LH1"]          
+                
 
+        return None
+        '''
 
 
 
@@ -301,10 +438,6 @@ class Board:
         grid = np.stack(rows)
         return Board(grid)
 
-        
-
-    # TODO: outros metodos da classe
-
 
 class PipeMania(Problem):
 
@@ -317,23 +450,25 @@ class PipeMania(Problem):
     def actions(self, state: PipeManiaState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        
-        board = state.board.grid, size = state.board.size
-        
-        for i in range(size):
-            for j in range(size):
-                
-                piece_value = state.board.getvalue(i, j)
-                if(piece_value[2] == '1'):
-                    pass                
-                
-                rotations = 0
-                #aqui, usar o comparisons para uma peça, que te devolve uma lista
-                    #com todos os possíveis casos
+
+        size = state.board.size
+        altered = False
+        if(flag["pre_process"] == True): 
+            for row in range(size):
+                for col in range(size):
+                    piece_value = state.board.get_value(row, col)
+                    if(piece_value[2] == '1'):
+                        continue                
+                    rotations = state.board.comparisons(row, col)
+                    if len(rotations) == 1:
+                        altered = True
+                        state.board.set_value(row, col, rotations[0])
+            if(altered == False):
+                flag["pre_process"] = False
+        return
+
+
                     
-                    
-                if len(rotations) == 1:
-                    return rotations
                 
                 
                 
@@ -373,7 +508,7 @@ class PipeMania(Problem):
         while stack_pieces:
             current_piece = stack_pieces.pop()
             if current_piece in seen_pieces:
-                pass
+                continue
             else:
                 pieces_seen_count +=1
                 seen_pieces.add((current_piece[0], current_piece[1]))
@@ -413,7 +548,7 @@ class PipeMania(Problem):
                         
 
                     else:
-                        pass
+                        continue
 
                     
 
@@ -421,45 +556,6 @@ class PipeMania(Problem):
         if(pieces_seen_count < self.goal):
             return False
         return True
-
-
-
-
-
-        '''
-        conditions:
-        --- para sabermos se as peças adjacentes estão corretamente 
-        colocadas, testamos com as listas que criámos
-
-        --- ao passarmos para um novo node, colocamos as peças adjacentes
-        ligadas dentro da Stack
-
-        --- sempre que passamos para um novo node, verificamos se a
-        current_height > max_height, se sim, atualizamos
-
-        --- caso não seja possível andar mais porque não estão corretamente
-        ligadas, paramos e goal_test = False
-
-        --- caso cheguemos a uma fonte/node que já visitámos, continuamos só
-
-        --- IMPORTANTE -> caso a DFS acabe e max_height < goal_test, significa
-        que temos um mini ciclo dentro do board, por isso goal_test = False
-            NÃO SEI SE É POSSÍVEL FAZER, MAS NESTE ÚLTIMO CASO, DEVIAS LOGO DIZER QUE
-            ESTÁS NO CAMINHO ERRADO, OU SEJA, CAGAS NESTA RAMIFICAÇÃO
-
-        '''
-
-
-
-
-
-
-
-
-
-
-        
-        return False
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
@@ -480,11 +576,11 @@ if __name__ == "__main__":
     board = Board.parse_instance(input_file)
     
     problem = PipeMania(board)
-
     s0 = PipeManiaState(board)
+    #s0.board.print_grid()
+    while(flag["pre_process"]):
+        problem.actions(s0)
     s0.board.print_grid()
-    s1 = problem.result(s0, (2,2,'D'))
-    s1.board.print_grid()
 
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
