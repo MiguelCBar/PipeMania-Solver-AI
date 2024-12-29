@@ -1,9 +1,3 @@
-# pipe.py: Implementacao do projeto de Inteligencia Artificial 2023/2024.
-
-# Grupo 45:
-# 106064 Miguel Casimiro Barbosa
-# 107095 David Costa Quintino
-
 import sys
 
 import copy
@@ -41,42 +35,40 @@ class PipeManiaState:
     def __lt__(self, other):
         return self.id < other.id
 
-    # TODO: outros metodos da classe
+    # TODO: Other methods for this class
 
 
 class Board:
-    """Representacao interna de um tabuleiro de PipeMania."""
+    """Internal representation of a PipeMania board."""
     def __init__(self, grid):
         self.grid = grid
         self.size = len(grid) 
 
 
     def get_value(self, row: int, col: int) -> str:
-        """Devolve o valor na respetiva posicao do tabuleiro e
-        se a peca foi vista"""
+        """Returns the value at the respective position on the board."""
         return self.grid[row][col]
     
 
     def get_piece(self, row: int, col: int) -> str:
-        """Devolve o valor na respetiva posicao do tabuleiro"""
+        """Returns the piece at the respective position on the board."""
         return self.grid[row][col][0:2]
     
 
     def set_value(self,row: int, col: int, value: str):
+        """Sets the value at the respective position on the board."""
         self.grid[row][col] = value
     
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str): # type: ignore
-        """Devolve os valores imediatamente acima e abaixo,
-        respectivamente."""
+        """Returns the values immediately above and below the specified position."""
         above_value = self.get_value(row-1,col) if row > 0 else None
         below_value = self.get_value(row+1,col) if row < self.size - 1 else None
         return above_value,below_value
 
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str): # type: ignore
-        """Devolve os valores imediatamente a esquerda e a direita,
-        respectivamente."""
+        """Returns the values immediately to the left and right of the specified position."""
         self.get_value(row,col)
         left_value = self.get_value(row, col-1) if col > 0 else None
         right_value = self.get_value(row, col+1) if col < self.size - 1 else None
@@ -84,15 +76,14 @@ class Board:
 
 
     def get_adjacent_values(self, row: int, col: int):
-        
-        (cima,baixo) = self.adjacent_vertical_values(row,col)
-        (esquerda,direita) = self.adjacent_horizontal_values(row,col)
-        return (cima,direita,baixo,esquerda)
+        """Returns all adjacent values (top, right, bottom, left)."""
+        (top, bottom) = self.adjacent_vertical_values(row, col)
+        (left, right) = self.adjacent_horizontal_values(row, col)
+        return (top, right, bottom, left)
 
 
     def print_grid(self):
-        # TODO
-        
+        """Prints the board grid."""
         for i in range(self.size):
             aux = "" 
             for j in range(self.size):
@@ -105,40 +96,36 @@ class Board:
     
     
 
-    
     def piece_corrected(self, row: int,  col: int): 
+        """Checks if a piece has been processed correctly."""
         return self.get_value(row,col)[2] == '1'
 
 
     def connections(self, row: int, col: int):
-        
-        vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda = self.get_adjacent_values(row,col)
-        vizinhos = (vizinho_cima,vizinho_direita,vizinho_baixo,vizinho_esquerda)
-        res = [2,2,2,2] # inicializar como desconhecido
+        """Checks connections for the piece at the specified position."""
+        neighbor_top, neighbor_right, neighbor_bottom, neighbor_left = self.get_adjacent_values(row, col)
+        neighbors = (neighbor_top, neighbor_right, neighbor_bottom, neighbor_left)
+        res = [2, 2, 2, 2]  # Initialize as unknown
         num_ones = 0
-        piece = self.get_piece(row,col) #ver o caso de duas fontes uma contra a outra
+        piece = self.get_piece(row, col)
         for i in range(4):
-            if (vizinhos[i] == None) or (piece[0] == 'F' and vizinhos[i][0] == 'F'): res[i] = 0 #ve se o vizinho e none
-            elif vizinhos[i][2] == '0' : res[i] = 2 # ve se ainda nao foi tratado
-            elif convert_piece[vizinhos[i][0:2]][(i + 2) % 4] == '1': #converte para bits e ve se o vizinho aponta para a peca
-                    res [i] = 1 
-                    num_ones +=1
-            else: res[i] = 0 #senao nao aponta
+            if (neighbors[i] == None) or (piece[0] == 'F' and neighbors[i][0] == 'F'):
+                res[i] = 0  # Neighbor is None or an invalid connection for F
+            elif neighbors[i][2] == '0':
+                res[i] = 2  # Neighbor not yet processed
+            elif convert_piece[neighbors[i][0:2]][(i + 2) % 4] == '1':  # Valid connection
+                res[i] = 1 
+                num_ones += 1
+            else:
+                res[i] = 0  # Invalid connection
         return (res, num_ones)
 
 
     def comparisons(self, row: int, col: int):
-
+        """Determines possible rotations for the piece at the specified position."""
         piece = self.get_value(row, col)
         connections, num_ones = self.connections(row, col)
-        '''
-        No connections, devolve um array de len = 4 com o seguinte formato:
-            -> Se for 0, ou o adjacente e None ou foi visto e nao aponta
-                - CASO ESPECIFICO: Se estivermos a tratar uma peca que seja um 
-                'F', retorna 0 se o adjacente tambem o for
-            -> Se for 1, o adjacente ja foi visto e aponta para a peca
-            -> Se for 2, o adjacente ja foi visto, mas nao aponta para a peca
-        '''
+
         rotations = []
         possible_piece = True
         keys = ['C','D','B','E']
@@ -157,7 +144,7 @@ class Board:
                 
                 if possible_piece:
                     rotations.append('F' + keys[j] + '1')
-                j+= 1
+                j += 1
 
             return rotations
 
@@ -174,10 +161,9 @@ class Board:
                 
                 if possible_piece:
                     rotations.append('B' + keys[j] + '1')
-                j+= 1
+                j += 1
 
             return rotations
-
 
         elif(piece[0] == 'V'):
             if(num_ones > 2):
@@ -191,10 +177,10 @@ class Board:
                 
                 if possible_piece:
                     rotations.append('V' + keys[j] + '1')
-                j+= 1
+                j += 1
             return rotations
 
-        else:   # e ligacao (L)
+        else:   # It is a connection piece (L)
             if(num_ones > 2):
                 return rotations
             for binary_piece in convert_piece_L:
@@ -205,15 +191,14 @@ class Board:
                         break
                 
                 if possible_piece:
-                    
                     rotations.append('L' + keys_L[j] + '1')
-                j+=1
+                j += 1
 
             return rotations
     
     def pre_process(self):
         """
-        Faz as operacoes iniciais no board
+        Performs initial operations on the board.
         """
         size = self.size
         altered = False
@@ -231,8 +216,7 @@ class Board:
     @staticmethod
     def parse_instance():
         """
-        Le o test do standard input (stdin) que e passado como argumento
-        e retorna uma instancia da classe Board.
+        Reads the input from standard input (stdin) and returns an instance of the Board class.
         """
         rows = []
         line = input()
@@ -248,23 +232,16 @@ class Board:
 
         return board
 
-    
-        
-
-        
-
-
 class PipeMania(Problem):
 
     def __init__(self, board: Board):
-        """O construtor especifica o estado inicial."""
+        """Constructor specifies the initial state."""
         self.initial = PipeManiaState(board)
         self.goal = board.size ** 2
 
 
     def actions(self, state: PipeManiaState):
-        """Retorna uma lista de acoes que podem ser executadas a
-        partir do estado passado como argumento."""
+        """Returns a list of actions that can be executed from the given state."""
         
         actions = []
         best_action = 5
@@ -289,11 +266,7 @@ class PipeMania(Problem):
 
                 
     def result(self, state: PipeManiaState, action) -> PipeManiaState:
-        """Retorna o estado resultante de executar a 'action' sobre
-        'state' passado como argumento. A acao a executar deve ser uma
-        das presentes na lista obtida pela execucao de
-        self.actions(state)."""
-
+        """Returns the resulting state after executing the given action on the given state."""
         copied_board = copy.deepcopy(state.board)
 
         copied_board.set_value(action[0], action[1], action[2])
@@ -302,9 +275,9 @@ class PipeMania(Problem):
 
 
     def goal_test(self, state: PipeManiaState):
-        """Retorna True se e so se o estado passado como argumento e
-        um estado objetivo. Deve verificar se todas as posicoes do tabuleiro
-        estao preenchidas de acordo com as regras do problema."""        
+        """Returns True if and only if the given state is a goal state.
+        Checks if all board positions are filled according to the problem rules.
+        """        
         pieces_seen_count = 0
         seen_pieces = set()
         stack_pieces = []
@@ -317,11 +290,11 @@ class PipeMania(Problem):
                 pieces_seen_count +=1
                 seen_pieces.add((current_piece[0], current_piece[1]))
                 piece_value = state.board.get_piece(current_piece[0], current_piece[1])
-                pieces_adjacent = state.board.get_adjacent_values(current_piece[0], current_piece[1]) #definir C D B E, isto tem os valores
+                pieces_adjacent = state.board.get_adjacent_values(current_piece[0], current_piece[1]) # Define connections
 
-                adjacents_position = [(current_piece[0] - 1, current_piece[1]),\
-                                      (current_piece[0], current_piece[1] + 1), \
-                                      (current_piece[0] + 1, current_piece[1]), \
+                adjacents_position = [(current_piece[0] - 1, current_piece[1]),
+                                      (current_piece[0], current_piece[1] + 1),
+                                      (current_piece[0] + 1, current_piece[1]),
                                       (current_piece[0], current_piece[1] - 1)]
 
                 connected = 0
@@ -344,7 +317,7 @@ class PipeMania(Problem):
         return True
 
     def h(self, node: Node):
-        """Funcao heuristica utilizada para a procura A*."""
+        """Heuristic function used for A* search."""
         # TODO
         pass
 
@@ -352,14 +325,13 @@ class PipeMania(Problem):
 if __name__ == "__main__":
     # TODO:
 
-
     board = Board.parse_instance()
     
     problem = PipeMania(board)
     goal_node = depth_first_tree_search(problem)
     goal_node.state.board.print_grid()
 
-    # Ler o ficheiro do standard input,
-    # Usar uma tecnica de procura para resolver a instancia,
-    # Retirar a solucao a partir do no resultante,
-    # Imprimir para o standard output no formato indicado.
+    # Read the file from standard input,
+    # Use a search technique to solve the instance,
+    # Extract the solution from the resulting node,
+    # Print to standard output in the specified format.
