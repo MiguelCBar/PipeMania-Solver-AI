@@ -33,7 +33,7 @@ The game consists of a square grid where different types of pipe pieces must be 
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/MiguelCBar/PipeMania-Solver-AI.git
+   git clone git@github.com:MiguelCBar/PipeMania-Solver-AI.git
    cd PipeMania-Solver
    ```
 
